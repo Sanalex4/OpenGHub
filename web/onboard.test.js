@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crc16, encodeTextMacro, readProfiles, readSector, validSector, writeSector, writeTextMacro } from './onboard.js';
+import { crc16, encodeTextMacro, encodeSteps, readProfiles, readSector, validSector, writeSector, writeTextMacro, writeMacro } from './onboard.js';
 
 function sealed(bytes) {
   const crc = crc16(bytes.subarray(0, -2));
@@ -21,6 +21,12 @@ test('CRC matches a real device directory', () => {
 test('text macros encode modifiers, delays and termination', () => {
   assert.deepEqual([...encodeTextMacro('Ab', 25)], [0x22, 2, 0x20, 4, 0x21, 4, 0x23, 2, 0x80, 0, 25, 0x20, 5, 0x21, 5, 0xff]);
   assert.throws(() => encodeTextMacro('я', 0), /не поддерживается/);
+});
+
+test('sequence macros encode shortcuts, clicks and pauses', () => {
+  assert.deepEqual([...encodeSteps([{ type: 'key', usage: 6, modifiers: 1 }, { type: 'delay', ms: 300 }, { type: 'mouse', mask: 2 }])], [0x22, 1, 0x20, 6, 0x21, 6, 0x23, 1, 0x80, 1, 44, 0x40, 0, 2, 0x41, 0, 2, 0xff]);
+  assert.throws(() => encodeSteps([]), /действие/);
+  assert.throws(() => encodeSteps([{ type: 'mouse', mask: 256 }]), /Некорректное/);
 });
 
 test('read, backup, write and verify a profile without touching other bytes', async () => {
@@ -57,6 +63,11 @@ test('read, backup, write and verify a profile without touching other bytes', as
   await assert.rejects(() => writeSector(client, info, 1, original, changed), /изменился/);
   const withMacro = await writeTextMacro(client, info, 1, written, 1, 'abc', 20);
   assert.deepEqual([...withMacro.slice(36, 40)], [0, 15, 0, 0]);
+  assert.equal(sectors[15][0], 0x20);
+  const sequence = encodeSteps([{ type: 'key', usage: 6, modifiers: 1 }, { type: 'delay', ms: 50 }, { type: 'mouse', mask: 2 }]);
+  const withSequence = await writeMacro(client, info, 1, withMacro, 2, sequence);
+  const offset = (withSequence[42] << 8) | withSequence[43];
+  assert.deepEqual([...sectors[15].slice(offset, offset + sequence.length)], [...sequence]);
   assert.equal(sectors[15][0], 0x20);
   await assert.rejects(() => writeTextMacro(client, info, 1, withMacro, 0, 'x', 0), /левое нажатие/);
 });
