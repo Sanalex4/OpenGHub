@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "targets": ["nsis"],
+    "shortDescription": "Experimental Windows build of OpenGHub",
+    "longDescription": "Experimental Windows build of OpenGHub for Logitech HID++ devices. Some features are not yet available."
+  }
+}

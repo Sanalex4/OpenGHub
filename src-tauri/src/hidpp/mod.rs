@@ -313,12 +313,21 @@ impl DeviceAddress {
 /// `/sys/…/usb1/1-1/1-1:1.2/0003:046D:C547.0004`: the path component right
 /// before the interface (`1-1:1.2`). Stable for as long as the device stays
 /// in the same socket.
+#[cfg(target_os = "linux")]
 pub fn usb_port(hidraw_path: &str) -> Option<String> {
     let node = std::path::Path::new(hidraw_path).file_name()?.to_str()?;
     let real = std::fs::canonicalize(format!("/sys/class/hidraw/{node}/device")).ok()?;
     let parts: Vec<&str> = real.iter().filter_map(|c| c.to_str()).collect();
     let iface = parts.iter().position(|c| c.contains(':') && c.contains('.') && c.contains('-'))?;
     parts.get(iface.checked_sub(1)?).map(|s| s.to_string())
+}
+
+#[cfg(target_os = "windows")]
+pub fn usb_port(path: &str) -> Option<String> {
+    use std::hash::{Hash, Hasher};
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    path.to_ascii_lowercase().hash(&mut hash);
+    Some(format!("{:016x}", hash.finish()))
 }
 
 // ---------------------------------------------------------------------------
@@ -490,7 +499,19 @@ impl Handle {
 
         // A failed write means the node is gone. The message is localised
         // ("Enheten finns inte" on a Swedish system), so it is not matched.
-        self.device.write(&bytes).map_err(|e| match e {
+        // Windows exposes each HID report collection as a separate handle.
+        // Devices such as G102 answer HID++ queries on their long-report
+        // collection, even for requests normally sent as short reports.
+        #[cfg(target_os = "windows")]
+        let written = if request.kind == ReportKind::Short {
+            let long = long_report(&bytes);
+            self.device.write(&long).or_else(|_| self.device.write(&bytes))
+        } else {
+            self.device.write(&bytes)
+        };
+        #[cfg(not(target_os = "windows"))]
+        let written = self.device.write(&bytes);
+        written.map_err(|e| match e {
             HidError::HidApiError { .. } => Error::NotConnected,
             other => Error::Hid(other),
         })?;
@@ -574,6 +595,14 @@ impl Handle {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn long_report(short: &[u8]) -> Vec<u8> {
+    let mut long = short.to_vec();
+    long.resize(LONG_LEN, 0);
+    long[0] = REPORT_ID_LONG;
+    long
+}
+
 // ---------------------------------------------------------------------------
 // Enumeration
 // ---------------------------------------------------------------------------
@@ -640,6 +669,17 @@ pub fn enumerate(api: &HidApi) -> Vec<Endpoint> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_long_report_preserves_short_request() {
+        let short = Packet::request(ReportKind::Short, 0xff, 0, 1, &[0, 0, 0x5a]).to_bytes();
+        let long = long_report(&short);
+        assert_eq!(long.len(), LONG_LEN);
+        assert_eq!(long[0], REPORT_ID_LONG);
+        assert_eq!(&long[1..short.len()], &short[1..]);
+        assert!(long[short.len()..].iter().all(|&b| b == 0));
+    }
 
     #[test]
     fn short_request_round_trips() {

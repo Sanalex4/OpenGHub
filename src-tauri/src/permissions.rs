@@ -8,6 +8,7 @@
 //! builds is removed at the same time (a `99-` file is tagged too late for
 //! systemd's `73-seat-late.rules` to apply the ACL).
 
+#[cfg(target_os = "linux")]
 use std::path::Path;
 
 use serde::Serialize;
@@ -37,6 +38,7 @@ pub struct UdevRuleStatus {
 }
 
 /// Compares what is installed with what this build ships.
+#[cfg(target_os = "linux")]
 pub fn status() -> UdevRuleStatus {
     // /etc overrides /usr/lib for the same file name, so check it first.
     let found = [RULE_PATH, PACKAGED_RULE_PATH]
@@ -49,6 +51,11 @@ pub fn status() -> UdevRuleStatus {
         can_install: crate::sandbox::host_has("pkexec"),
         path: found.as_ref().map(|(p, _)| p.to_string()).unwrap_or_else(|| RULE_PATH.into()),
     }
+}
+
+#[cfg(target_os = "windows")]
+pub fn status() -> UdevRuleStatus {
+    UdevRuleStatus { installed: true, current: true, stale: false, can_install: false, path: String::new() }
 }
 
 /// Everything that needs root, done in one authentication: install the rule,
@@ -105,6 +112,7 @@ fn base64_encode(data: &[u8]) -> String {
     out
 }
 
+#[cfg(any(target_os = "linux", test))]
 fn normalise(s: &str) -> String {
     s.lines().map(str::trim_end).filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n")
 }

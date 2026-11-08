@@ -10,6 +10,9 @@
   import { deviceStore } from "$lib/stores/devices.svelte";
   import { ui } from "$lib/stores/ui.svelte";
 
+  let isWindows = $state(false);
+  onMount(() => { isWindows = navigator.userAgent.includes("Windows"); });
+
   let configPath = $state("");
   /** Presence of the ~/.config/autostart entry, read from the backend. */
   let autostart = $state<boolean | null>(null);
@@ -197,7 +200,7 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="046d", TAG+="uaccess"`;
     </button>
   </section>
 
-  <section class="card panel">
+  {#if !isWindows}<section class="card panel">
     <h2 class="section-title">Linux device access</h2>
     <p class="lede">
       HID++ needs read/write access to the device's <code>hidraw</code> node. Distributions do
@@ -218,7 +221,7 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="046d", TAG+="uaccess"`;
       what turns the <code>uaccess</code> tag into an ACL, so a higher-numbered file is tagged
       too late to have any effect.
     </p>
-  </section>
+  </section>{/if}
 
   <section class="card panel">
     <h2 class="section-title">Community</h2>

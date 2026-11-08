@@ -22,6 +22,10 @@
 //! that receives the effects games upload and turns them into slot commands,
 //! so no kernel module is needed.
 
+#[cfg(target_os = "linux")]
+pub mod ffb;
+#[cfg(target_os = "windows")]
+#[path = "../windows/ffb.rs"]
 pub mod ffb;
 /// The uinput binding lives at the crate root; re-exported for the bridge.
 pub use crate::uinput;

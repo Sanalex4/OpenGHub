@@ -3,12 +3,20 @@
 pub mod animation;
 pub mod apps;
 pub mod artwork;
+#[cfg(target_os = "linux")]
+pub mod autostart;
+#[cfg(target_os = "windows")]
+#[path = "windows/autostart.rs"]
 pub mod autostart;
 pub mod commands;
 pub mod community;
 pub mod demo;
 pub mod depot;
 pub mod firmware;
+#[cfg(target_os = "linux")]
+pub mod gamemode;
+#[cfg(target_os = "windows")]
+#[path = "windows/gamemode.rs"]
 pub mod gamemode;
 pub mod games;
 pub mod ghub_settings;
@@ -21,8 +29,16 @@ pub mod scripting;
 pub mod hidpp;
 pub mod profiles;
 pub mod state;
+#[cfg(target_os = "linux")]
+pub mod recorder;
+#[cfg(target_os = "windows")]
+#[path = "windows/recorder.rs"]
 pub mod recorder;
 pub mod text;
+#[cfg(target_os = "linux")]
+pub mod uinput;
+#[cfg(target_os = "windows")]
+#[path = "windows/uinput.rs"]
 pub mod uinput;
 pub mod wheel;
 
@@ -754,6 +770,7 @@ fn next_profile(app: &tauri::AppHandle) {
 /// Everything a profile switch or rescan has to push to the hardware.
 pub fn apply_all_profiles(app: &tauri::AppHandle) {
     apply_wheel_profiles(app);
+    #[cfg(target_os = "linux")]
     apply_onboard_modes(app);
     apply_game_modes(app);
     apply_device_settings(app, None);

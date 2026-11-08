@@ -8,6 +8,9 @@
   import Icon from "$lib/components/Icon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import type { EmptyReason } from "$lib/types";
+  import { onMount } from "svelte";
+  let isWindows = $state(false);
+  onMount(() => { isWindows = navigator.userAgent.includes("Windows"); });
 
   interface Props {
     reason: EmptyReason | null;
@@ -79,7 +82,10 @@ sudo udevadm trigger --action=add --subsystem-match=hidraw`;
         {permission.devices.length === 1 ? "it" : "them"}.
       </strong>
       <p class="devices">{permission.devices.join(", ")}</p>
-      <p>
+      {#if isWindows}
+      <p>Close other software that may be using the device, reconnect it, and rescan.</p>
+      <div class="actions"><button onclick={onrescan}>Rescan</button></div>
+      {:else}<p>
         The <code>hidraw</code> nodes are root-only on this system. OpenGHub can install its udev
         rule for you (your desktop asks for your password), or run these yourself and then unplug
         and reconnect the device (or its receiver):
@@ -92,6 +98,7 @@ sudo udevadm trigger --action=add --subsystem-match=hidraw`;
         <button onclick={copyCommands}>Copy commands</button>
         <button onclick={onrescan}>Rescan</button>
       </div>
+      {/if}
       <p class="aside">Showing demo devices until then.</p>
     </div>
   </div>

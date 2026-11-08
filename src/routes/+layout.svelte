@@ -15,6 +15,7 @@
   import { goto } from "$app/navigation";
 
   let { children } = $props();
+  let isWindows = $state(false);
 
   /**
    * Device screens and community profile pages carry their own back arrow
@@ -38,6 +39,7 @@
   api.installErrorForwarding();
 
   onMount(() => {
+    isWindows = navigator.userAgent.includes("Windows");
     ui.restore();
 
     let unsubscribe: (() => void) | undefined;
@@ -84,6 +86,9 @@
   {#if showTopBar}
     <TopBar />
   {/if}
+  {#if isWindows}
+    <div class="windows-preview">Windows preview: assignments, macros, scripting input, game detection, software lighting and virtual wheels are not yet supported.</div>
+  {/if}
   <main>
     {@render children?.()}
   </main>
@@ -93,6 +98,13 @@
 <Toasts />
 
 <style>
+  .windows-preview {
+    padding: 8px 20px;
+    background: #684a16;
+    color: #fff;
+    font-size: 12px;
+    text-align: center;
+  }
   .shell {
     display: flex;
     flex-direction: column;

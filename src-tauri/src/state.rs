@@ -514,6 +514,12 @@ impl DeviceManager {
     /// device has onboard profiles, the onboard button table too.
     /// `watch_all` keeps the spy on even without assignments, so a running
     /// Lua script sees every button.
+    #[cfg(target_os = "windows")]
+    pub fn apply_assignments(&self, _: &str, _: &[Assignment], _: &[MacroDef], _: bool) -> Result<AssignmentReport> {
+        Err(Error::other("Button assignments are not available on Windows yet"))
+    }
+
+    #[cfg(target_os = "linux")]
     pub fn apply_assignments(
         &self,
         id: &str,

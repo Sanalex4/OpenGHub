@@ -72,6 +72,26 @@ Native games and anything through SDL see OpenGHub's virtual wheel with full for
 
 ## Building from source
 
+### Windows preview
+
+The Windows build is experimental. HID++ device discovery and read-only DPI,
+polling-rate and lighting capability detection have been checked with a G102
+LIGHTSYNC. Other devices, including PRO X SUPERLIGHT 2, are not yet verified.
+Button assignments, macros, software lighting effects, game detection and the
+virtual wheel are not supported on Windows. Do not use this preview for
+firmware updates. Windows requires WebView2 and Visual Studio C++ Build Tools.
+
+From an x64 Visual Studio developer prompt:
+
+```powershell
+npm ci
+npm run tauri build -- --bundles nsis
+```
+
+The installer is written to `src-tauri/target/release/bundle/nsis/`.
+
+### Linux
+
 ```sh
 # Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev libssl-dev build-essential pkg-config patchelf
 # Fedora:        sudo dnf install webkit2gtk4.1-devel libayatana-appindicator-gtk3-devel librsvg2-devel systemd-devel openssl-devel gcc patchelf

@@ -15,6 +15,7 @@
 
 use std::collections::HashMap;
 use std::io::Read;
+#[cfg(target_os = "linux")]
 use std::os::fd::{AsRawFd, IntoRawFd};
 use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,7 +55,9 @@ pub enum SoftwareEffect {
 }
 
 /// Thumbnail size the screen helper produces.
+#[cfg(target_os = "linux")]
 const THUMB_W: usize = 64;
+#[cfg(target_os = "linux")]
 const THUMB_H: usize = 36;
 const TICK: Duration = Duration::from_millis(50);
 
@@ -109,6 +112,7 @@ pub struct ScreenSource {
 
 impl ScreenSource {
     /// Asks the portal for a monitor stream, then starts the helper.
+    #[cfg(target_os = "linux")]
     pub async fn start(restore_token: Option<String>) -> Result<Self> {
         use ashpd::desktop::screencast::{CursorMode, Screencast, SourceType};
         use ashpd::desktop::PersistMode;
@@ -202,6 +206,11 @@ impl ScreenSource {
         });
 
         Ok(ScreenSource { latest, child: Mutex::new(Some(child)), stop, _session_task: session_task, restore_token: token })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub async fn start(_restore_token: Option<String>) -> Result<Self> {
+        Err(Error::other("Screen sampling is not yet available on this platform"))
     }
 
     pub fn frame(&self) -> Option<Frame> {
