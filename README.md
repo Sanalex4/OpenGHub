@@ -27,7 +27,7 @@ This fork of [Slyvan25/OpenGHub](https://github.com/Slyvan25/OpenGHub) adds an e
 
 ### Web app
 
-Open [OpenGHub Web](https://sanalex4.github.io/OpenGHub/) in a desktop browser with WebHID support, connect a Logitech mouse or receiver, and select its vendor HID interface when prompted. The current web app reads and sets DPI and polling rate for compatible HID++ devices. It does not upload device data or require an installed application. Settings may be temporary or require the device to be in host mode. Other features and hardware compatibility are not yet guaranteed.
+Open [OpenGHub Web](https://openghubweb.github.io/) in a desktop browser with WebHID support, connect a Logitech mouse or receiver, and select its vendor HID interface when prompted. The web app offers DPI, polling rate, supported lighting effects, lift-off height, battery status and device mode where supported. It can read onboard profiles and edit DPI stages, button bindings, keyboard shortcuts and basic text macros on devices with a supported profile format. G102 LIGHTSYNC discovery and reading DPI and polling rate were tested on hardware; profile and lighting writes and other models, including Superlight 2, remain unverified. Profile writes currently require format 4 with 255-byte sectors. Before a profile sector is changed, its original contents are saved in the browser for the current connection, and a write is read back and checked. The web app does not upload device data or require an installed application. Live settings may be temporary or require host mode; support differs by model. Firmware updates, automatic game switching and host-side macros are not implemented.
 
 ### Windows x64
 
