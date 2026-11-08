@@ -5,12 +5,12 @@
 <h1 align="center">OpenGHub</h1>
 
 <p align="center">
-  Logitech G HUB for Linux — open source, native, no kernel module.<br>
-  DPI, polling rate, LIGHTSYNC, button assignments, macros, on-board profiles, racing wheels with force feedback, Lua scripting and firmware updates, in the interface you already know.
+  Open-source Logitech device configuration for Linux, with an experimental Windows port.<br>
+  Configure supported HID++ peripherals using a familiar interface.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Slyvan25/OpenGHub/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Slyvan25/OpenGHub?label=release"></a>
+  <a href="https://github.com/Sanalex4/OpenGHub/releases"><img alt="Windows preview" src="https://img.shields.io/badge/Windows-preview-orange"></a>
   <a href="https://github.com/Slyvan25/OpenGHub/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Slyvan25/OpenGHub/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
@@ -21,11 +21,21 @@
 
 ---
 
-OpenGHub talks to Logitech peripherals directly over **HID++ 2.0** through `hidraw`, the way G HUB does on Windows — so the things the device itself supports work exactly as they do there, and the things G HUB does in software are done here in userspace. Built with Tauri 2, Svelte 5 and Rust.
+This fork of [Slyvan25/OpenGHub](https://github.com/Slyvan25/OpenGHub) adds an experimental Windows port. OpenGHub talks to Logitech peripherals over **HID++ 2.0** through HIDAPI; Linux uses `hidraw`. It is built with Tauri 2, Svelte 5 and Rust. Windows support is still incomplete and does not yet match the Linux feature set.
 
 ## Install
 
-Grab the package for your distribution from the [latest release](https://github.com/Slyvan25/OpenGHub/releases/latest).
+### Windows x64
+
+Download `OpenGHub_0.1.4_x64-setup.exe` from the [Windows preview releases](https://github.com/Sanalex4/OpenGHub/releases), run the installer, and launch OpenGHub. Microsoft Edge WebView2 is required.
+
+The preview has been tested on Windows with a **G102 LIGHTSYNC**: device discovery and reading DPI, polling rate and capabilities work. Writing settings has not yet been verified on this device. The **PRO X SUPERLIGHT 2** receiver and extended DPI protocol are implemented but have not been tested on the physical mouse. Other models may work if they expose compatible HID++ features, but compatibility is not guaranteed.
+
+Button assignments, macros, scripting input, automatic game detection, software lighting effects and the virtual wheel are not yet available on Windows. Do not use the preview for firmware updates.
+
+### Linux
+
+Grab the package for your distribution from the [upstream Linux release](https://github.com/Slyvan25/OpenGHub/releases/latest).
 
 | Distribution | Package | Install |
 | --- | --- | --- |
@@ -39,7 +49,9 @@ The .deb and .rpm install the udev rule that lets you talk to the devices. The F
 
 Optional, for the LIGHTSYNC software effects: `gstreamer1.0-tools` + `gstreamer1.0-pipewire` (screen sampler) and `pulseaudio-utils` (audio visualizer).
 
-## What you get
+## Linux features
+
+These are upstream Linux features; the Windows preview has the limitations listed above.
 
 - **Devices** — every HID++ 2.0 device is discovered automatically, wired, over Bluetooth or behind a LIGHTSPEED / Unifying / Bolt receiver, with its battery, firmware and the exact renders and button/zone geometry G HUB uses (fetched from Logitech's public CDN at runtime, never bundled).
 - **Sensitivity** — DPI stages, default and shift stage, polling rate up to 8 kHz.
@@ -53,15 +65,15 @@ Optional, for the LIGHTSYNC software effects: `gstreamer1.0-tools` + `gstreamer1
 - **Firmware** — release notes and version checks from Logitech's own firmware packages, and updates over the standard HID++ DFU sequence.
 - **Everything else** — tray menu, launch at startup, start minimised, low-battery mode, sleep timers, left-handed layout, on-board memory mode.
 
-## Tested hardware
+## Tested hardware on Linux
 
 Developed against a **G502 LIGHTSPEED** (mouse features, on-board memory, lighting, macros, scripting) and a **G923 Racing Wheel** (PS4/PC edition: force feedback, TrueForce, shifter, pedals, gamepad mode). Any other HID++ 2.0 device should work for the features it exposes — the app reads the device's own feature list and adapts. If yours doesn't, open an issue with the output of *Device settings → HID++ features*.
 
-## Games and Proton
+## Games and Proton on Linux
 
 Native games and anything through SDL see OpenGHub's virtual wheel with full force feedback. Proton routes Logitech wheels over hidraw by default (that is what lets TrueForce reach the wheel); to give a Proton game the driver's wheel *and* keep TrueForce, launch it with `PROTON_DISABLE_HIDRAW=0x046d/0xc266 %command%`. The [wheel notes](docs/wheels.md) explain the trade-offs.
 
-## Where things live
+## Where things live on Linux
 
 | | Path |
 | --- | --- |
@@ -69,6 +81,8 @@ Native games and anything through SDL see OpenGHub's virtual wheel with full for
 | Device renders, layouts, firmware packages, backups | `~/.local/share/openghub/` |
 | udev rule | `/etc/udev/rules.d/70-openghub.rules` (installed by the package or from the app) |
 | Launch at startup | `~/.config/autostart/openghub.desktop` |
+
+On Windows, OpenGHub keeps its application data under `%APPDATA%\openghub\OpenGHub\`. Startup is registered under the current user's Windows `Run` key when enabled.
 
 ## Building from source
 
