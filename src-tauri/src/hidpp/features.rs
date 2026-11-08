@@ -118,6 +118,7 @@ pub mod battery {
 // ---------------------------------------------------------------------------
 pub mod dpi {
     pub const ID: u16 = 0x2201;
+    pub const ID_EXTENDED: u16 = 0x2202;
     pub const FN_GET_SENSOR_COUNT: u8 = 0x00;
     pub const FN_GET_SENSOR_DPI_LIST: u8 = 0x01;
     pub const FN_GET_SENSOR_DPI: u8 = 0x02;
@@ -134,9 +135,9 @@ pub mod report_rate {
     pub const FN_SET: u8 = 0x02;
 
     pub const ID_EXTENDED: u16 = 0x8061;
-    pub const FN_EXT_GET_CAPABILITIES: u8 = 0x00;
-    pub const FN_EXT_GET: u8 = 0x01;
-    pub const FN_EXT_SET: u8 = 0x02;
+    pub const FN_EXT_GET_CAPABILITIES: u8 = 0x01;
+    pub const FN_EXT_GET: u8 = 0x02;
+    pub const FN_EXT_SET: u8 = 0x03;
 
     /// 0x8061 encodes rates as an index into this table (divisors of 8 ms).
     pub const EXTENDED_RATES_HZ: [u32; 7] = [125, 250, 500, 1000, 2000, 4000, 8000];
@@ -554,6 +555,24 @@ fn voltage_to_percent(mv: u16) -> u8 {
 
 /// Reads DPI for `sensor`, including the selectable list.
 pub fn read_dpi(h: &mut Handle, sensor: u8) -> Result<DpiState> {
+    if let Ok(idx) = h.feature_index(dpi::ID_EXTENDED) {
+        let current = h.call(idx, 0x05, &[sensor], ReportKind::Long)?;
+        let mut range = Vec::new();
+        for page in 0..8u8 {
+            let reply = match h.call(idx, 0x02, &[sensor, 0, page], ReportKind::Long) {
+                Ok(reply) => reply,
+                Err(e) if page == 0 => return Err(e),
+                Err(_) => break,
+            };
+            let data = reply.params.get(3..).ok_or(Error::Malformed)?;
+            if data.iter().all(|&v| v == 0) { break; }
+            range.extend_from_slice(data);
+        }
+        let steps = parse_extended_dpi_steps(&range);
+        let min = *steps.first().ok_or(Error::Malformed)?;
+        let max = *steps.last().ok_or(Error::Malformed)?;
+        return Ok(DpiState { sensor, current: current.param_u16(1), default: current.param_u16(3), steps, min, max, step: 0 });
+    }
     let idx = h.feature_index(dpi::ID)?;
     let current = h.call(idx, dpi::FN_GET_SENSOR_DPI, &[sensor], ReportKind::Short)?;
     let list = h.call(idx, dpi::FN_GET_SENSOR_DPI_LIST, &[sensor], ReportKind::Long)?;
@@ -570,7 +589,32 @@ pub fn read_dpi(h: &mut Handle, sensor: u8) -> Result<DpiState> {
     })
 }
 
+fn parse_extended_dpi_steps(data: &[u8]) -> Vec<u16> {
+    let words: Vec<u16> = data.chunks_exact(2).map(|v| u16::from_be_bytes([v[0], v[1]])).take_while(|&v| v != 0).collect();
+    let mut result = Vec::new();
+    let mut i = 0;
+    while i < words.len() {
+        let start = words[i];
+        if start >= 0xe000 { i += 1; continue; }
+        if i + 2 < words.len() && words[i + 1] & 0xff00 == 0xe000 && words[i + 2] < 0xe000 {
+            let step = words[i + 1] & 0xff;
+            let end = words[i + 2];
+            if step > 0 && end >= start {
+                result.extend((start..=end).step_by(step as usize));
+            }
+            i += 2;
+        } else {
+            result.push(start);
+            i += 1;
+        }
+    }
+    result.sort_unstable();
+    result.dedup();
+    result
+}
+
 pub fn sensor_count(h: &mut Handle) -> Result<u8> {
+    if h.supports(dpi::ID_EXTENDED) { return Ok(1); }
     let idx = h.feature_index(dpi::ID)?;
     Ok(h.call(idx, dpi::FN_GET_SENSOR_COUNT, &[], ReportKind::Short)?.param(0).max(1))
 }
@@ -622,6 +666,12 @@ pub fn write_dpi(h: &mut Handle, sensor: u8, requested: u16) -> Result<u16> {
     let state = read_dpi(h, sensor)?;
     let target = snap_dpi(&state, requested);
     let [hi, lo] = target.to_be_bytes();
+    if let Ok(idx) = h.feature_index(dpi::ID_EXTENDED) {
+        let current = h.call(idx, 0x05, &[sensor], ReportKind::Long)?;
+        let lod = current.param(9);
+        h.call(idx, 0x06, &[sensor, hi, lo, hi, lo, lod], ReportKind::Long)?;
+        return Ok(target);
+    }
     let idx = h.feature_index(dpi::ID)?;
     with_host_mode(h, |h| {
         h.call(idx, dpi::FN_SET_SENSOR_DPI, &[sensor, hi, lo], ReportKind::Short)
@@ -653,9 +703,10 @@ fn snap_dpi(state: &DpiState, requested: u16) -> u16 {
 pub fn read_report_rate(h: &mut Handle) -> Result<ReportRateState> {
     if let Ok(idx) = h.feature_index(report_rate::ID_EXTENDED) {
         // connection type 0 = wired, 1 = wireless; ask about the active one.
-        let caps = h.call(idx, report_rate::FN_EXT_GET_CAPABILITIES, &[0], ReportKind::Short)?;
-        let mask = caps.param(0);
-        let current_idx = h.call(idx, report_rate::FN_EXT_GET, &[], ReportKind::Short)?.param(0);
+        let connection = u8::from(h.address.device_index != crate::hidpp::DEVICE_INDEX_WIRED);
+        let caps = h.call(idx, report_rate::FN_EXT_GET_CAPABILITIES, &[connection], ReportKind::Short)?;
+        let mask = caps.param(1);
+        let current_idx = h.call(idx, report_rate::FN_EXT_GET, &[connection], ReportKind::Short)?.param(0);
         let available: Vec<u32> = (0..report_rate::EXTENDED_RATES_HZ.len())
             .filter(|i| mask & (1 << i) != 0)
             .map(|i| report_rate::EXTENDED_RATES_HZ[i])
@@ -701,7 +752,8 @@ pub fn write_report_rate(h: &mut Handle, hz: u32) -> Result<u32> {
             .position(|r| *r == target)
             .ok_or(Error::Malformed)? as u8;
         let idx = h.feature_index(report_rate::ID_EXTENDED)?;
-        with_host_mode(h, |h| h.call(idx, report_rate::FN_EXT_SET, &[index], ReportKind::Short))?;
+        let connection = u8::from(h.address.device_index != crate::hidpp::DEVICE_INDEX_WIRED);
+        h.call(idx, report_rate::FN_EXT_SET, &[connection, index], ReportKind::Short)?;
     } else {
         let period_ms = (1000 / target.max(1)).clamp(1, 8) as u8;
         let idx = h.feature_index(report_rate::ID)?;
@@ -1118,6 +1170,12 @@ impl LightEffect {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn extended_dpi_range_handles_multiple_step_sizes() {
+        let ranges = [0x00, 0x64, 0xe0, 0x32, 0x01, 0x2c, 0xe0, 0x64, 0x02, 0x58, 0x00, 0x00];
+        assert_eq!(parse_extended_dpi_steps(&ranges), vec![100, 150, 200, 250, 300, 400, 500, 600]);
+    }
     use crate::hidpp::{ReportKind, REPORT_ID_LONG};
 
     fn long_reply(params: &[u8]) -> Packet {

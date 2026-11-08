@@ -76,6 +76,7 @@ pub static KNOWN_DEVICES: &[KnownDevice] = &[
     rcv(0xc545, "LIGHTSPEED Receiver"),
     rcv(0xc547, "LIGHTSPEED Receiver"),
     rcv(0xc548, "LIGHTSPEED Receiver"),
+    rcv(0xc54d, "LIGHTSPEED Receiver"),
     rcv(0xc52f, "Nano Receiver"),
     rcv(0xc548, "Bolt Receiver"),
 
@@ -168,6 +169,7 @@ mod tests {
     #[test]
     fn receivers_are_flagged() {
         assert!(is_receiver(0xc539));
+        assert!(is_receiver(0xc54d));
         assert!(!is_receiver(0xc08b));
     }
 

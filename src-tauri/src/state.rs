@@ -1371,7 +1371,7 @@ impl Inner {
                 };
 
                 // A receiver slot with nothing paired into it never answers.
-                if handle.ping().is_err() {
+                if handle.protocol_version == (0, 0) {
                     continue;
                 }
 
@@ -1746,7 +1746,7 @@ fn probe(handle: &mut Handle, snapshot: &mut DeviceSnapshot, endpoint: &hidpp::E
     snapshot.demo = false;
 
     snapshot.capabilities = Capabilities {
-        dpi: handle.supports(features::dpi::ID),
+        dpi: handle.supports(features::dpi::ID) || handle.supports(features::dpi::ID_EXTENDED),
         report_rate: handle.supports(features::report_rate::ID)
             || handle.supports(features::report_rate::ID_EXTENDED),
         battery: handle.supports(features::battery::ID_UNIFIED)
