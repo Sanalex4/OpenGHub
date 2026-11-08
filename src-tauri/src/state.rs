@@ -1313,6 +1313,7 @@ impl Inner {
         // Names of devices we could see but not open, so the UI can name them.
         let mut unopenable: Vec<String> = Vec::new();
         let mut seen: Vec<String> = Vec::new();
+        let mut seen_addresses = std::collections::HashSet::new();
 
         for endpoint in &endpoints {
             // A receiver is a bridge, not a device: probe its six child slots.
@@ -1332,9 +1333,15 @@ impl Inner {
                 address.device_index = index;
                 address.port = port.clone();
                 let address_id = address.id();
+                if seen_addresses.contains(&address_id) {
+                    continue;
+                }
 
                 // Known connection: reuse its handle under the device's id.
                 if let Some(id) = self.aliases.get(&address_id).cloned().filter(|id| self.handles.contains_key(id)) {
+                    if seen.contains(&id) {
+                        continue;
+                    }
                     let handle = self.handles.get_mut(&id).expect("checked");
                     if handle.address.id() != address_id || handle.ping().is_err() {
                         if handle.address.id() == address_id {
@@ -1350,6 +1357,7 @@ impl Inner {
                     probe(handle, &mut snapshot, endpoint);
                     snapshot.id = id.clone();
                     self.snapshots.insert(id.clone(), snapshot);
+                    seen_addresses.insert(address_id);
                     seen.push(id);
                     continue;
                 }
@@ -1380,15 +1388,19 @@ impl Inner {
                 let id = device_identity(&snapshot)
                     .filter(|id| !seen.contains(id))
                     .unwrap_or_else(|| address_id.clone());
+                if seen.contains(&id) {
+                    continue;
+                }
                 if let Some(old) = self.snapshots.remove(&id) {
                     // Same device, new connection: keep what is not re-read.
                     snapshot.onboard_mode = snapshot.onboard_mode.or(old.onboard_mode);
                 }
                 snapshot.id = id.clone();
                 self.aliases.retain(|_, v| *v != id);
-                self.aliases.insert(address_id, id.clone());
+                self.aliases.insert(address_id.clone(), id.clone());
                 self.handles.insert(id.clone(), handle);
                 self.snapshots.insert(id.clone(), snapshot);
+                seen_addresses.insert(address_id);
                 seen.push(id);
             }
         }
@@ -1396,6 +1408,9 @@ impl Inner {
         // Classic wheels: no HID++, no ping — open the joystick interface.
         for endpoint in wheel::enumerate(api) {
             let id = format!("046d:{:04x}:wheel", endpoint.model.product_id);
+            if seen.contains(&id) {
+                continue;
+            }
             if !self.wheels.contains_key(&id) {
                 match WheelHandle::open(api, &endpoint) {
                     Ok(h) => {

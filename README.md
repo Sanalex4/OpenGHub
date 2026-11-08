@@ -25,9 +25,13 @@ This fork of [Slyvan25/OpenGHub](https://github.com/Slyvan25/OpenGHub) adds an e
 
 ## Install
 
+### Web app
+
+Open [OpenGHub Web](https://sanalex4.github.io/OpenGHub/) in a desktop browser with WebHID support, connect a Logitech mouse or receiver, and select its vendor HID interface when prompted. The current web app reads and sets DPI and polling rate for compatible HID++ devices. It does not upload device data or require an installed application. Settings may be temporary or require the device to be in host mode. Other features and hardware compatibility are not yet guaranteed.
+
 ### Windows x64
 
-Download `OpenGHub_0.1.4_x64-setup.exe` from the [Windows preview releases](https://github.com/Sanalex4/OpenGHub/releases), run the installer, and launch OpenGHub. Microsoft Edge WebView2 is required.
+Download the latest `OpenGHub_*_x64-setup.exe` from the [Windows preview releases](https://github.com/Sanalex4/OpenGHub/releases), run the installer, and launch OpenGHub. Microsoft Edge WebView2 is required.
 
 The preview has been tested on Windows with a **G102 LIGHTSYNC**: device discovery and reading DPI, polling rate and capabilities work. Writing settings has not yet been verified on this device. The **PRO X SUPERLIGHT 2** receiver and extended DPI protocol are implemented but have not been tested on the physical mouse. Other models may work if they expose compatible HID++ features, but compatibility is not guaranteed.
 
