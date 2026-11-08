@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crc16, encodeTextMacro, encodeSteps, readProfiles, readSector, validSector, writeSector, writeTextMacro, writeMacro } from './onboard.js';
+import { crc16, encodeTextMacro, encodeSteps, readProfiles, readSector, validSector, writeSector, writeTextMacro, writeMacro, profileDpi, profileRate } from './onboard.js';
 
 function sealed(bytes) {
   const crc = crc16(bytes.subarray(0, -2));
@@ -16,6 +16,16 @@ test('CRC matches a real device directory', () => {
   assert.equal(validSector(sector), true);
   sector[2] ^= 1;
   assert.equal(validSector(sector), false);
+});
+
+test('DPI and polling rate update only their onboard profile fields', () => {
+  const original = new Uint8Array(255); original[1] = 2;
+  const dpi = profileDpi(original, 1600, [800, 1600]);
+  assert.deepEqual([...dpi.slice(7, 9)], [0x40, 0x06]);
+  assert.equal(original[7], 0);
+  assert.equal(profileRate(dpi, 333, [125, 333, 1000])[0], 3);
+  assert.throws(() => profileRate(dpi, 2000, [2000]), /не поддерживается/);
+  assert.throws(() => profileDpi(original, 1500, [800, 1600]), /DPI/);
 });
 
 test('text macros encode modifiers, delays and termination', () => {

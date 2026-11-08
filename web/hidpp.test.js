@@ -6,6 +6,18 @@ test('DPI ranges contain all valid steps across segment boundaries', () => {
   assert.deepEqual(dpiValues([0, 100, 0xe0, 50, 1, 44, 0xe0, 100, 2, 88, 0, 0]), [100, 150, 200, 250, 300, 400, 500, 600]);
 });
 
+test('onboard mode is enabled and verified before use', async () => {
+  const client = Object.create(Hidpp.prototype);
+  let value = 2, writes = 0;
+  client.readMode = async () => ({ feature: 7, value });
+  client.setMode = async (_mode, next) => { writes++; value = next; return client.readMode(); };
+  assert.equal((await client.enableOnboard()).value, 1);
+  await client.enableOnboard();
+  assert.equal(writes, 1);
+  value = 2; client.setMode = async () => ({ feature: 7, value: 2 });
+  await assert.rejects(() => client.enableOnboard(), /не подтвердила/);
+});
+
 test('lighting uses the zone-local effect index and the requested persistence', async () => {
   const calls = [];
   const client = Object.create(Hidpp.prototype);
@@ -22,6 +34,8 @@ test('lighting uses the zone-local effect index and the requested persistence', 
   await client.setLighting(lighting, 0, 10, '#112233', 3000, 80, false);
   assert.deepEqual(calls.at(-2), { feature: 7, fn: 5, params: [1, 3, 5] });
   assert.deepEqual(calls.at(-1), { feature: 7, fn: 1, params: [0, 1, 0x11, 0x22, 0x33, 0x0b, 0xb8, 0, 80, 0, 0, 0, 0] });
+  await client.setLighting(lighting, 0, 10, '#112233', 3000, 80, true);
+  assert.equal(calls.at(-1).params[12], 1);
 });
 
 test('extended DPI pages are joined before decoding and rate uses wireless slot', async () => {
